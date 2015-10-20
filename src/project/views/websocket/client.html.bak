@@ -1,0 +1,215 @@
+<!doctype html>
+<html class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Amaze UI Examples</title>
+
+  <!-- Set render engine for 360 browser -->
+  <meta name="renderer" content="webkit">
+
+  <!-- No Baidu Siteapp-->
+  <meta http-equiv="Cache-Control" content="no-siteapp"/>
+
+  <link rel="icon" type="image/png" href="http://sixbyte.sinaapp.com/wp-content/themes/simplehome/images/face.png">
+
+  <!-- Add to homescreen for Chrome on Android -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="icon" sizes="192x192" href="http://sixbyte.sinaapp.com/wp-content/themes/simplehome/images/face.png">
+
+  <!-- Add to homescreen for Safari on iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Amaze UI"/>
+  <link rel="apple-touch-icon-precomposed" href="http://sixbyte.sinaapp.com/wp-content/themes/simplehome/images/face.png">
+
+  <!-- Tile icon for Win8 (144x144 + tile color) -->
+  <meta name="msapplication-TileImage" content="http://sixbyte.sinaapp.com/wp-content/themes/simplehome/images/face.png">
+  <meta name="msapplication-TileColor" content="#0e90d2">
+
+  <!-- SEO: If your mobile URL is different from the desktop URL, add a canonical link to the desktop page https://developers.google.com/webmasters/smartphone-sites/feature-phones -->
+  <!--
+  <link rel="canonical" href="http://www.example.com/">
+  -->
+
+  <link rel="stylesheet" href="http://cdn.amazeui.org/amazeui/2.4.2/css/amazeui.min.css">
+</head>
+<body>
+<script type="text/javascript">
+    var sock = null;
+    var wsuri = "ws://127.0.0.1:8080/websocket/server";
+
+    window.onload = function() {
+
+        console.log("onload");
+
+        sock = new WebSocket(wsuri);
+
+        sock.onopen = function() {
+            console.log("connected to " + wsuri);
+            var name = prompt('输入你的名字开始聊天')
+            document.title = name
+            var data = {
+                "method": "login",
+                "params": {"name":name}
+            }
+            sock.send(JSON.stringify(data));
+        }
+
+        sock.onclose = function(e) {
+            console.log("connection closed (" + e.code + ")");
+        }
+
+        sock.onmessage = function(e) {
+            console.log(JSON.parse(e.data));
+            data = JSON.parse(e.data);
+            if (data.handle=="received") {
+                received(data.content);
+            };
+            if (data.handle=="getplayers") {
+                getplayers(data.content);
+            };
+
+        }
+    };
+
+    function logout(){
+        var data = {
+            "method": "logout"
+        }
+        sock.send(JSON.stringify(data));
+    }
+
+    function received(content){
+        item =    '<li class="am-comment">';
+        item +=   '<a href="#link-to-user-home">';
+        item +=   '<img src="" alt="" class="am-comment-avatar" width="48" height="48"/>'
+        item +=   '</a>'
+        item +=   '<div class="am-comment-main">'
+        item +=   '<header class="am-comment-hd">'
+        item +=   '<div class="am-comment-meta">'
+        item +=   '<a href="#link-to-user" class="am-comment-author">'+content.from.name+'</a>'
+        item +=   ' <time datetime="2013-07-27T04:54:29-07:00">'+content.time+'</time>'
+        item +=   '</div>'
+        item +=   '</header>'
+        item +=   '<div class="am-comment-bd">'
+        item +=   ''+content.content+''
+        item +=   '</div>'
+        item +=   '</div>'
+        item +=   '</li>';
+        document.getElementById('comment-list').innerHTML = item + document.getElementById('comment-list').innerHTML;
+        myScroll.refresh();
+        myScroll.scrollTo(0,0);
+    }
+
+    function send() {
+        var message = document.getElementById('message').value;
+        var who = document.getElementById('who').value;
+
+        if (who == "all") {
+            from_to = "我";
+        } else {
+            from_to = "我 to " + who;
+        }
+
+        item =    '<li class="am-comment am-comment-flip">';
+        item +=   '<a href="#link-to-user-home">';
+        item +=   '<img src="" alt="" class="am-comment-avatar" width="48" height="48"/>'
+        item +=   '</a>'
+        item +=   '<div class="am-comment-main">'
+        item +=   '<header class="am-comment-hd">'
+        item +=   '<div class="am-comment-meta">'
+        item +=   '<a href="#link-to-user" class="am-comment-author">'+from_to+'</a>'
+        item +=   ' <time datetime="2013-07-27T04:54:29-07:00">12343</time>'
+        item +=   '</div>'
+        item +=   '</header>'
+        item +=   '<div class="am-comment-bd">'
+        item +=   ''+message+''
+        item +=   '</div>'
+        item +=   '</div>'
+        item +=   '</li>';
+        document.getElementById('comment-list').innerHTML = item + document.getElementById('comment-list').innerHTML;
+        myScroll.refresh();
+        myScroll.scrollTo(0,0);
+
+        // msg = '{"handle":"send","content":{"content":"'+message+'","to":"'+who+'"}}'
+        var data = {
+            "method": "sendto",
+            "params": {"content": message,"player_id":who}
+        }
+        console.log(JSON.stringify(data))
+        sock.send(JSON.stringify(data));
+    };
+
+    function getplayers (content) {
+        playerslist = "";
+        for (var i = content.length - 1; i >= 0; i--) {
+            playerslist += '<li>' + content[i].name + '<button onclick="setto('+content[i].id+')" type="button" class="am-btn am-btn-default am-btn-xs am-fr">私聊</button></li>';
+        };
+        document.getElementById('playerslist').innerHTML = playerslist;
+    }
+</script>
+<h1 style="text-align: center;">简单的 go + websocket + react 实时聊天系统</h1>
+<div class="am-container">
+    <div class="am-g">
+      <div class="am-u-md-4">
+            <div class="am-panel am-panel-primary">
+              <div class="am-panel-hd">玩家列表</div>
+              <div class="am-panel-bd">
+                <ul id="playerslist" class="am-list am-list-static am-list-border">
+                </ul>
+              </div>
+            </div>
+      </div>
+      <div class="am-u-md-8">
+            <section class="am-panel am-panel-secondary">
+              <header class="am-panel-hd">
+                <h3 class="am-panel-title">聊天窗口</h3>
+              </header>
+              <div class="am-panel-bd">
+                <div id="wrapper" style="height:500px; overflow: hidden;">
+                    <ul id="comment-list" class="am-comments-list am-comments-list-flip" >
+
+                    </ul>
+                </div>
+              </div>
+            </section>
+            <section class="am-panel am-panel-warning">
+              <header class="am-panel-hd">
+                <h3 class="am-panel-title">发送消息</h3>
+              </header>
+              <div class="am-panel-bd">
+                <input id="who" type="hidden" value="all">
+                <input id="message" type="text" value="Hello, world!">
+                <button onclick="send();">Send Message</button>
+              </div>
+            </section>
+      </div>
+    </div>
+</div>
+
+<!--[if (gte IE 9)|!(IE)]><!-->
+<script src="//cdn.bootcss.com/jquery/1.11.3/jquery.min.js"></script>
+<!--<![endif]-->
+<!--[if lte IE 8 ]>
+<script src="http://libs.baidu.com/jquery/1.11.3/jquery.min.js"></script>
+<script src="http://cdn.staticfile.org/modernizr/2.8.3/modernizr.js"></script>
+<script src="assets/js/amazeui.ie8polyfill.min.js"></script>
+<![endif]-->
+<script src="http://cdn.amazeui.org/amazeui/2.4.2/js/amazeui.min.js"></script>
+<script type="text/javascript">
+    var IScroll = $.AMUI.iScroll;
+    var myScroll = new IScroll('#wrapper', {
+        mouseWheel: true,
+        tap: true,
+        scrollbars: true,
+        click: true
+    });
+    myScroll.scrollTo(0,0)
+</script>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
+    <!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+    <title>世界频道</title>
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="//cdn.bootcss.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <!--
+    <script src="http://fb.me/react-0.13.0.js"></script>
+    <script src="http://fb.me/JSXTransformer-0.13.0.js"></script>
+    -->
+    <script src="//cdn.bootcss.com/react/0.13.0/react.min.js"></script>
+    <script src="//cdn.bootcss.com/react/0.13.0/JSXTransformer.js"></script>
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="//cdn.bootcss.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="//cdn.bootcss.com/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <style type="text/css">
+      body,html {
+        height: 100%;
+        overflow: hidden;
+      }
+      .nav-bte {
+        padding: 0px;
+        text-align: center;
+        height: 34px;
+        line-height: 34px;
+        border: solid 1px #6B6B6B;
+        border-radius: 100px;
+        color: #6B6B6B;
+      }
+      .header-img-flip {
+        padding-left: 0px;
+        padding-right: 5px;
+      }
+      .message-flip {
+        padding-right: 5px;
+      }
+      .header-img-positive {
+        padding-right: 0px;
+        padding-left: 5px;
+      }
+      .message-positive {
+        padding-left: 5px;
+      }
+
+      .session {
+        padding-top: 30px;
+        padding-bottom: 50px;
+      }
+
+      #wrapper {
+        height:100%;
+        overflow: hidden;
+        padding-bottom: 50px;
+      }
+      .notice-tip {
+        margin-bottom: 20px;
+        text-align: center;
+      }
+
+      .container-fluid-fix {
+        margin-top:8px;
+        padding-left: 5px;
+        padding-right: 5px;
+      }
+
+      .col-message-form {
+        padding-left: 5px;
+        padding-right: 5px;
+      }
+
+    </style>
+  </head>
+  <body>
+    <div id="login"></div>
+    <div id="wrapper"></div>
+    <nav id="nav" class="navbar navbar-default navbar-fixed-bottom"></nav>
+
+
+    <!-- jQuery文件。务必在bootstrap.min.js 之前引入 -->
+    <script src="//cdn.bootcss.com/jquery/1.11.3/jquery.min.js"></script>
+
+    <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+    <script src="//cdn.bootcss.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="http://meiriq-static.b0.upaiyun.com/autobox/js/iscroll.min.js"></script>
+    <script type="text/javascript" src="//cdn.bootcss.com/blueimp-md5/1.1.1/js/md5.js"></script>
+    <script type="text/javascript">
+    var sock = null;
+    var ReactObj = new Object();
+    function getWeksocket(){
+      if (sock == null) {
+        var wsuri = "ws://192.168.1.163:8080/websocket/server";
+        sock = new WebSocket(wsuri);
+      };
+      return sock;
+    }
+    function getHeaderImg(name){
+      return "https://cdn.v2ex.co/gravatar/"+md5(name)+"?s=80&d=retro"
+    }
+    </script>
+    <script type="text/jsx">
+    var LogIn = React.createClass({
+      handleSubmit:function(e){
+        e.preventDefault();
+        var player_name = this.refs.playerName.getDOMNode().value.trim();
+        console.log(player_name);
+        if (!player_name) {
+          return;
+        };
+        this.refs.playerName.getDOMNode().value = '';
+        window.React.render(
+          <Session playerName={player_name} />,
+          document.getElementById('wrapper')
+        );
+        window.React.render(
+          <Nav />,
+          document.getElementById('nav')
+        );
+      },
+      render:function(){
+        return (
+          <div className="container">
+          <h1 className="text-center">世界频道</h1>
+          <form className="form-horizontal text-center" onSubmit={this.handleSubmit}>
+            <div className="form-group">
+              <div className="col-sm-12">
+                <label className="sr-only" for="player_name">昵称</label>
+                <input type="text" className="form-control" ref="playerName" name="player_name" placeholder="输入一个昵称." />
+              </div>
+            </div>
+            <div className="form-group">
+              <div className="col-sm-12">
+                <button type="submit" id="go" className="btn btn-primary btn-block">进入聊天室</button>
+              </div>
+            </div>
+          </form>
+          </div>
+        );
+      }
+    });
+    var Session = React.createClass({
+      listenWebsocket:function(){
+        sock = getWeksocket();
+        sock.onopen = function() {
+            console.log("connected to ");
+            var data = {
+                "method": "login",
+                "params": {"name":window.ReactObj.Session.playerName}
+            }
+            sock.send(JSON.stringify(data));
+        }
+        sock.onclose = function(e) {
+            console.log("connection closed (" + e.code + ")");
+            $("#login").fadeIn(500);
+            React.unmountComponentAtNode(document.getElementById('wrapper'));
+            React.unmountComponentAtNode(document.getElementById('nav'));
+        }
+        sock.onmessage = function(e) {
+            data = JSON.parse(e.data);
+            console.log(data);
+            if (data.method == "SendToPlayers") {
+              window.ReactObj.Session.handleSendToPlayers(data);
+            };
+
+            if (data.method == "notice") {
+              window.ReactObj.Session.handleNotice(data);
+            };
+            if (data.method == "UpdatePlayerList") {
+              window.ReactObj.Session.handleUpdatePlayerList(data);
+            };
+
+        }
+      },
+      handleUpdatePlayerList:function(data){
+        var player_num = data.params.players.length;
+        document.title = "世界频道("+player_num+")";
+      },
+      handleSendToPlayers:function(data){
+        var msg = {
+          "type":"MsgPositive",
+          "messageContent":data.params.message.content,
+          "imgTitle":data.params.message.from.name,
+          "imgContent":data.params.message.from.id,
+          "imgUrl":getHeaderImg(data.params.message.from.name)
+        }
+        var msgs = this.state.data;
+        var newMsgs = msgs.concat([msg]);
+        this.setState({data: newMsgs});
+      },
+      handleNotice:function(data){
+        var msg = {
+          "type":"Notice",
+          "noticeContent":data.params.message
+        }
+        var msgs = this.state.data;
+        var newMsgs = msgs.concat([msg]);
+        this.setState({data: newMsgs});
+      },
+      componentDidMount: function() {
+        $("#login").fadeOut(500);
+        window.myscroll = new IScroll('#wrapper', {
+          mouseWheel: true,
+          click:true,
+          tap: true
+        });
+        this.listenWebsocket();
+      },
+      componentDidUpdate:function(prevProps,prevState){
+        window.myscroll.refresh();
+        window.myscroll.scrollTo(0,window.myscroll.maxScrollY);
+        $('[data-toggle="popover"]').popover()
+      },
+      getInitialState: function() {
+        this.playerName = this.props.playerName;
+        this.playerHeaderImg = window.getHeaderImg(this.playerName);
+        window.ReactObj.Session = this;
+        return {"data": []};
+      },
+      render: function() {
+        var msgNodes = this.state.data.map(function(msg){
+          if (msg.type == "MsgFlip") {
+            return (
+              <Msg direction={0} messageContent={msg.messageContent} imgTitle={msg.imgTitle} imgContent={msg.imgContent} imgUrl={msg.imgUrl} />
+            );
+          };
+
+          if (msg.type == "MsgPositive") {
+            return (
+              <Msg direction={1} messageContent={msg.messageContent} imgTitle={msg.imgTitle} imgContent={msg.imgContent} imgUrl={msg.imgUrl} />
+            );
+          };
+
+          if (msg.type == "Notice") {
+            return (
+              <Notice noticeContent={msg.noticeContent} />
+            );
+          };
+
+        });
+        return (
+          <div id="session" className="container session">
+            {msgNodes}
+          </div>
+        );
+      }
+    });
+
+    var Msg = React.createClass({
+      render: function() {
+        var data1 = "row msg-flip";
+        if (this.props.direction == 0) {
+          data1 = "row message-positive";
+        };
+        if (this.props.direction == 1) {
+          return (
+            <div className={data1}>
+              <HeaderImg direction={this.props.direction} imgTitle={this.props.imgTitle} imgContent={this.props.imgContent} imgUrl={this.props.imgUrl} />
+              <Message direction={this.props.direction} messageContent={this.props.messageContent} />
+            </div>
+          );
+        };
+        return (
+          <div className={data1}>
+            <Message direction={this.props.direction} messageContent={this.props.messageContent} />
+            <HeaderImg direction={this.props.direction} imgTitle={this.props.imgTitle} imgContent={this.props.imgContent} imgUrl={this.props.imgUrl} />
+          </div>
+        );
+      }
+    });
+
+    var HeaderImg = React.createClass({
+      render: function() {
+        var data1 = "col-xs-2 header-img-positive";
+        var data2 = "right";
+        if (this.props.direction == 0) {
+          data1 = "col-xs-2 header-img-flip";
+          data2 = "left";
+        };
+        return (
+          <div className={data1} title={this.props.imgTitle} data-container="body" data-toggle="popover" data-placement={data2} data-content={this.props.imgContent}>
+            <img src={this.props.imgUrl} className="img-thumbnail" />
+          </div>
+        );
+      }
+    });
+
+    var Message = React.createClass({
+      render: function() {
+        var class1 = "col-xs-8 message-positive";
+        var class2 = "alert alert-info";
+        if (this.props.direction == 0) {
+          class1 = "col-xs-offset-2 col-xs-8 message-flip";
+          class2 = "alert alert-success";
+        };
+        return (
+            <div className={class1}>
+              <div className={class2} role="alert">{this.props.messageContent}</div>
+            </div>
+        );
+      }
+    });
+
+    var Notice = React.createClass({
+      render: function() {
+        return (
+          <div className="row notice">
+            <div className="col-xs-12 notice-tip">
+              <span className="label label-warning">{this.props.noticeContent}</span>
+            </div>
+          </div>
+        );
+      }
+    });
+
+    var Nav = React.createClass({
+      handleSubmit:function(e){
+        e.preventDefault();
+        var content = this.refs.content.getDOMNode().value.trim();
+        var player_id = this.refs.player_id.getDOMNode().value.trim();
+        if (!player_id || !content) {
+          return;
+        };
+        this.handleMessageSubmit({"content":content,"player_id":player_id});
+        this.refs.content.getDOMNode().value = '';
+        return;
+      },
+      handleMessageSubmit:function(message){
+        sock = getWeksocket();
+        var data = {
+            "method": "sendto",
+            "params": {"content": message.content,"player_id":message.player_id}
+        }
+        sock.send(JSON.stringify(data));
+        var msg = {
+          "type":"MsgFlip",
+          "messageContent":message.content,
+          "imgTitle":window.ReactObj.Session.playerName,
+          "imgContent":"myid",
+          "imgUrl":window.ReactObj.Session.playerHeaderImg
+        }
+        var msgs = window.ReactObj.Session.state.data;
+        var newMsgs = msgs.concat([msg]);
+        window.ReactObj.Session.setState({data: newMsgs});
+      },
+      componentDidMount: function() {
+        $('input').bind('click',function(e){
+            var $this = $(this);
+            e.preventDefault();
+            setTimeout(function(){
+                $(window).scrollTop($this.offset().top - 10);
+            },500)
+        })
+      },
+      render:function(){
+        return (
+          <div className="container-fluid container-fluid-fix">
+            <div className="col-xs-1 nav-bte"><span className="glyphicon glyphicon-user" aria-hidden="true"></span></div>
+            <div className="col-xs-9 col-message-form">
+            <form id="send-message" onSubmit={this.handleSubmit}>
+            <input name="content" ref="content" type="text" className="form-control" placeholder="" />
+            <input name="player_id" type="hidden" defaultValue="all" ref="player_id" />
+            </form>
+            </div>
+            <div className="col-xs-1 nav-bte"><span className="glyphicon glyphicon-repeat" aria-hidden="true"></span></div>
+            <div className="col-xs-1 nav-bte"><span className="glyphicon glyphicon-plus" aria-hidden="true"></span></div>
+          </div>
+        );
+      }
+    });
+
+    React.render(
+      <LogIn />,
+      document.getElementById('login')
+    );
+    </script>
+  </body>
+</html>
